@@ -84,20 +84,22 @@ def add_quote_to_image(quote: str, image_path: str = "1.jpg") -> io.BytesIO:
                 lines.append(current_line)
             return lines
 
-        # Цитата в кавычках
+         # Цитата в кавычках
         full_quote = f"«{quote}»"
 
-        # Ограничиваем до 3 строк (иначе вылезет)
+        # Разбиваем на строки (ширина — 70% от картинки)
         lines = wrap_text(full_quote, font, int(width * 0.7))
-        if len(lines) > 3:
-            lines = lines[:3]
-            lines[-1] = lines[-1][:20] + "..."
+
+        # Увеличиваем максимум строк до 6 (иначе может не поместиться)
+        if len(lines) > 6:
+            lines = lines[:6]
+            lines[-1] = lines[-1][:30] + "..."
 
         # Вычисляем высоту текста
-        line_height = 55
+        line_height = 50
         total_height = len(lines) * line_height
 
-        # Начальная позиция по Y — немного выше середины
+        # Центрируем по вертикали
         y_start = (height // 2) - (total_height // 2)
 
         # Рисуем каждую строку
@@ -169,4 +171,5 @@ people = [
 
 if __name__ == "__main__":
     asyncio.run(send_message())
+
 
