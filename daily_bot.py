@@ -47,70 +47,79 @@ def get_daily_quote():
 
 
 def add_quote_to_image(quote: str, image_path: str = "1.jpg") -> io.BytesIO:
-    """Накладывает цитату на изображение и возвращает байты результата."""
+    """Накладывает цитату по центру на изображение с тенью."""
     try:
-        # Открываем изображение
         img = Image.open(image_path).convert("RGB")
         draw = ImageDraw.Draw(img)
+        width, height = img.size
 
-        # Параметры текста
-        max_width = int(img.width * 0.8)  # 80% от ширины картинки
-        margin = 30
-        y_offset = img.height - 200  # снизу картинки
-
-        # Попытка загрузить русский шрифт (если есть)
+        # Попытка загрузить шрифт (если есть) — для GitHub Actions используем fallback
         try:
-            # Для Linux/Mac: можно использовать системные шрифты
-            # Для GitHub Actions (Ubuntu): попробуем стандартный шрифт
-            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 32)
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 48)
         except OSError:
             try:
-                # Альтернатива
-                font = ImageFont.truetype("NotoSans-Bold.ttf", 32)
+                font = ImageFont.truetype("NotoSans-Bold.ttf", 48)
             except OSError:
-                # Используем стандартный шрифт (но он не поддерживает кириллицу хорошо)
+                # Fallback: стандартный шрифт + увеличение масштаба
                 font = ImageFont.load_default()
+                # Увеличиваем размер через масштабирование
+                font = ImageFont.truetype("DejaVuSans-Bold.ttf", 48) if hasattr(ImageFont, 'truetype') else ImageFont.load_default()
 
-        # Разбиваем цитату на строки, чтобы не вылезала за границы
+        # Функция для переноса текста по ширине
         def wrap_text(text, font, max_width):
-            lines = []
             words = text.split()
-            line = ""
+            lines = []
+            current_line = ""
             for word in words:
-                test_line = f"{line} {word}".strip()
+                test_line = f"{current_line} {word}".strip()
                 bbox = draw.textbbox((0, 0), test_line, font=font)
-                width = bbox[2] - bbox[0]
-                if width <= max_width:
-                    line = test_line
+                w = bbox[2] - bbox[0]
+                if w <= max_width:
+                    current_line = test_line
                 else:
-                    if line:
-                        lines.append(line)
-                    line = word
-            if line:
-                lines.append(line)
+                    if current_line:
+                        lines.append(current_line)
+                    current_line = word
+            if current_line:
+                lines.append(current_line)
             return lines
 
-        lines = wrap_text(f"«{quote}»", font, max_width)
+        # Цитата в кавычках
+        full_quote = f"«{quote}»"
 
-        # Рисуем тень (чтобы текст читался на любом фоне)
-        shadow_offset = 2
+        # Ограничиваем до 3 строк (иначе вылезет)
+        lines = wrap_text(full_quote, font, int(width * 0.7))
+        if len(lines) > 3:
+            lines = lines[:3]
+            lines[-1] = lines[-1][:20] + "..."
+
+        # Вычисляем высоту текста
+        line_height = 55
+        total_height = len(lines) * line_height
+
+        # Начальная позиция по Y — немного выше середины
+        y_start = (height // 2) - (total_height // 2)
+
+        # Рисуем каждую строку
         for i, line in enumerate(lines):
-            y = y_offset + i * 40
-            draw.text((margin + shadow_offset, y + shadow_offset), line, font=font, fill="black")
-            draw.text((margin, y), line, font=font, fill="white")
+            # Тень (чёрный)
+            x = (width - draw.textbbox((0, 0), line, font=font)[2]) // 2
+            y = y_start + i * line_height
+            draw.text((x + 2, y + 2), line, fill="black", font=font)
+            # Белый текст
+            draw.text((x, y), line, fill="white", font=font)
 
         # Сохраняем в байты
         img_bytes = io.BytesIO()
-        img.save(img_bytes, format="JPEG", quality=95)
+        img.save(img_bytes, format="JPEG", quality=90)
         img_bytes.seek(0)
         return img_bytes
 
     except Exception as e:
-        print(f"Ошибка при создании изображения: {e}")
-        # Если всё сломалось — возвращаем исходную картинку
+        print(f"⚠️ Ошибка при создании изображения: {e}")
+        # Если всё сломалось — отправим исходную картинку
         with open(image_path, "rb") as f:
             return io.BytesIO(f.read())
-
 
 async def send_message():
     bot = Bot(token=TOKEN)
@@ -160,3 +169,4 @@ people = [
 
 if __name__ == "__main__":
     asyncio.run(send_message())
+
