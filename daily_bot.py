@@ -166,10 +166,12 @@ people = [
     {"имя": "Леха", "birth": date(1989, 8, 27)},
     {"имя": "Шурин", "birth": date(1981, 4, 18)},
     {"имя": "Вандал", "birth": date(1982, 12, 1)},
+    {"имя": "Пашкевич", "birth": date(1987, 01, 9)},
 ]
 
 
 if __name__ == "__main__":
     asyncio.run(send_message())
+
 
 
