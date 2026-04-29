@@ -123,28 +123,32 @@ async def send_morning_message():
         print(f"❌ Ошибка отправки: {e}")
 
 # === Основной цикл ===
+from datetime import datetime, timedelta
+
+# ...
+
 async def main():
     print("✅ Бот запущен. Жду 10:00 по Москве...")
     sent_today = False
+    last_check_date = None
+
     while True:
-        # Получаем текущее время в UTC
-        now_utc = datetime.now(timezone.utc)
-        # Переводим в Москву (UTC+3)
-        moscow_time = now_utc.astimezone(timezone(offset=timezone.utc.utcoffset(None) or timezone.utc))
-        moscow_time = now_utc.replace(tzinfo=None) + timedelta(hours=3)
+        # Текущее время в UTC
+        now_utc = datetime.utcnow()
+        # Москва = UTC+3
+        moscow_time = now_utc + timedelta(hours=3)
 
         current_hour = moscow_time.hour
         current_minute = moscow_time.minute
         current_date = moscow_time.date()
 
-        # Если 10:00–10:02 и ещё не отправляли сегодня
-        if current_hour == 10 and 0 <= current_minute <= 2 and not sent_today:
-            await send_morning_message()
-            sent_today = True
-        elif current_hour == 11:  # Сбрасываем флаг после 11:00
-            sent_today = False
+        # Если настало утро и ещё не отправляли сегодня
+        if current_hour == 10 and 0 <= current_minute <= 2:
+            if last_check_date != current_date:
+                await send_morning_message()
+                last_check_date = current_date
+        elif current_hour >= 11:
+            # Сбрасываем флаг после 11:00 (на случай перезапуска)
+            last_check_date = None
 
-        await asyncio.sleep(60)  # Проверяем каждую минуту
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        await asyncio.sleep(60)  # проверяем каждую минуту
